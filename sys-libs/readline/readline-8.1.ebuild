@@ -1,9 +1,9 @@
-# Copyright 1999-2018 Gentoo Foundation
+# Copyright 1999-2021 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
-EAPI=6
+EAPI=7
 
-inherit flag-o-matic multilib-minimal toolchain-funcs
+inherit flag-o-matic multilib-minimal preserve-libs toolchain-funcs usr-ldscript
 
 # Official patches
 # See ftp://ftp.cwru.edu/pub/bash/readline-7.0-patches/
@@ -28,7 +28,7 @@ patches() {
 }
 
 DESCRIPTION="Another cute console display library"
-HOMEPAGE="http://cnswww.cns.cwru.edu/php/chet/readline/rltop.html"
+HOMEPAGE="https://tiswww.case.edu/php/chet/readline/rltop.html"
 
 case ${PV} in
 	*_alpha*|*_beta*|*_rc*)
@@ -40,22 +40,25 @@ case ${PV} in
 esac
 
 LICENSE="GPL-3"
-SLOT="0/7"  # subslot matches SONAME major
-KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~ia64 ~m68k ~mips ~ppc ~ppc64 ~s390 ~sh ~sparc ~x86 ~amd64-fbsd ~x86-fbsd ~amd64-linux ~arm-linux ~x86-linux"
-IUSE="static-libs utils"
+SLOT="0/8"  # subslot matches SONAME major
+[[ "${PV}" == *_rc* ]] || \
+KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~ia64 ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~x64-cygwin ~amd64-linux ~x86-linux ~ppc-macos ~x64-macos ~sparc-solaris ~sparc64-solaris ~x64-solaris ~x86-solaris"
+IUSE="static-libs +unicode utils"
 
-RDEPEND=">=sys-libs/ncurses-5.9-r3:0=[static-libs?,${MULTILIB_USEDEP}]"
-DEPEND="${RDEPEND}
-	virtual/pkgconfig"
+RDEPEND=">=sys-libs/ncurses-5.9-r3:0=[static-libs?,unicode?,${MULTILIB_USEDEP}]"
+DEPEND="${RDEPEND}"
+BDEPEND="
+	virtual/pkgconfig
+"
 
-S=${WORKDIR}/${MY_P}
+S="${WORKDIR}/${MY_P}"
 
 PATCHES=(
 	"${FILESDIR}"/${PN}-5.0-no_rpath.patch
 	"${FILESDIR}"/${PN}-6.2-rlfe-tgoto.patch #385091
 	"${FILESDIR}"/${PN}-7.0-headers.patch
-	"${FILESDIR}"/${PN}-7.0-missing-echo-proto.patch
-	"${FILESDIR}"/${PN}-7.0-mingw.patch
+	"${FILESDIR}"/${PN}-8.0-headers.patch
+	"${FILESDIR}"/${PN}-8.0-darwin-shlib-versioning.patch
 )
 
 # Needed because we don't want the patches being unpacked
@@ -70,7 +73,7 @@ src_prepare() {
 
 	# Force ncurses linking. #71420
 	# Use pkg-config to get the right values. #457558
-	local ncurses_libs=$($(tc-getPKG_CONFIG) ncurses --libs)
+	local ncurses_libs=$($(tc-getPKG_CONFIG) ncurses$(usex unicode w '') --libs)
 	sed -i \
 		-e "/^SHLIB_LIBS=/s:=.*:='${ncurses_libs}':" \
 		support/shobj-conf || die
@@ -166,9 +169,17 @@ multilib_src_install_all() {
 pkg_preinst() {
 	# bug #29865
 	# Reappeared in #595324 with paludis so keeping this for now...
-	preserve_old_lib /$(get_libdir)/lib{history,readline}.so.{4,5,6}
+	preserve_old_lib \
+		/$(get_libdir)/lib{history,readline}$(get_libname 4) \
+		/$(get_libdir)/lib{history,readline}$(get_libname 5) \
+		/$(get_libdir)/lib{history,readline}$(get_libname 6) \
+		/$(get_libdir)/lib{history,readline}$(get_libname 7)
 }
 
 pkg_postinst() {
-	preserve_old_lib_notify /$(get_libdir)/lib{history,readline}.so.{4,5,6}
+	preserve_old_lib_notify \
+		/$(get_libdir)/lib{history,readline}$(get_libname 4) \
+		/$(get_libdir)/lib{history,readline}$(get_libname 5) \
+		/$(get_libdir)/lib{history,readline}$(get_libname 6) \
+		/$(get_libdir)/lib{history,readline}$(get_libname 7)
 }
